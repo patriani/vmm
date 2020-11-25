@@ -1,2 +1,2 @@
 # vmm
-Um simulador de máquina com FIFO e substituição randômica 
+Um simulador de memória virtual com substituição de página por FIFO e maneira randômica 
