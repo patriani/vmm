@@ -49,9 +49,15 @@ typedef struct {
 	int clock: "Se a última instrução gerou um ciclo de clock"
 
 */
-int fifo(int8_t** page_table, int num_pages, int prev_page,
-         int fifo_frm, int num_frames, int clock) {
-    return -1;
+int fifo(int8_t** page_table, int num_pages, int prev_page, int fifo_frm, int num_frames, int clock) {
+    printf("entrou\n");
+    for(int i = 0; i < num_pages; i++){
+        if(page_table[i][PT_FRAMEID] == fifo_frm){
+            printf("%d\n",i);
+            printf("%d\n",page_table[i][PT_FRAMEID]);
+            return i; // i representa o endereço virtual da página a ser subtituída
+        }
+    }
 }
 
 int second_chance(int8_t** page_table, int num_pages, int prev_page,
@@ -81,7 +87,7 @@ int random_page(int8_t** page_table, int num_pages, int prev_page,
 
 int find_next_frame(int *physical_memory, int *num_free_frames,
                     int num_frames, int *prev_free) {
-    if (*num_free_frames == 0) {
+    if (*num_free_frames == 0) { // nenhum livre
         return -1;
     }
 
@@ -114,8 +120,8 @@ int simulate(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
                                           num_frames, prev_free); // retorna -1 se não tiver nenhum livre (*num_free_frames == 0)
         if (*fifo_frm == -1) // caso a variável de primeiro acesso à página estiver com valor default 
             *fifo_frm = next_frame_addr; // guarda endereço do ultimo primeiro inserido (mais antigo)
-        *num_free_frames = *num_free_frames - 1; 
-    } else { // Precisamos liberar a memória!
+        *num_free_frames = *num_free_frames - 1;
+    } else { // Precisamos liberar a memória (não há mais páginas livres e nenhuma das páginas virtuais corresponde à requisição)! -> chama o algoritmo
         assert(*num_free_frames == 0); // retorna erro caso *num_free_frames != 0
         int to_free = evict(page_table, num_pages, *prev_page, *fifo_frm,
                             num_frames, clock); // chama a função com o endereço em evict que retornará a página a ser liberada
@@ -124,8 +130,8 @@ int simulate(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
         assert(page_table[to_free][PT_MAPPED] != 0);
 
         next_frame_addr = page_table[to_free][PT_FRAMEID];
-        *fifo_frm = (*fifo_frm + 1) % num_frames;
-        // Libera pagina antiga 
+        *fifo_frm = (*fifo_frm + 1) % num_frames; // posição relativa ao número de frames -> frame com alocação mais antiga caminha em círculo (menos quando não há page fault - ele se mantém) 
+        // Libera pagina antiga
         page_table[to_free][PT_FRAMEID] = -1;
         page_table[to_free][PT_MAPPED] = 0;
         page_table[to_free][PT_DIRTY] = 0;
@@ -161,16 +167,16 @@ void run(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
     int i = 0;
     int clock = 0;
     int faults = 0;
-    while (scanf("%d", &virt_addr) == 1) { 
+    while (scanf("%d", &virt_addr) == 1) { // enquanto puder ler um endereço virtual de anomaly
         getchar();
-        scanf("%c", &access_type);
+        scanf("%c", &access_type); // leitura de w do anomaly
         clock = ((i+1) % clock_freq) == 0;
         faults += simulate(page_table, num_pages, prev_page, fifo_frm,
                            physical_memory, num_free_frames, num_frames, prev_free,
                            virt_addr, access_type, evict, clock);
         i++;
     }
-    printf("%d\n", faults);
+    printf("faults: %d\n", faults);
 }
 
 int parse(char *opt) {
@@ -230,18 +236,18 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    // Aloca tabela (matriz) de páginas com tamanho baseado em num_pages == 10
+    // Aloca tabela (matriz) de páginas virtuais com tamanho baseado em num_pages == 10
     int8_t **page_table = (int8_t **) malloc(num_pages * sizeof(int8_t*));
     for (int i = 0; i < num_pages; i++) {
-        // para cada campo do vetor page_table aloca PT_FIELDS (==6) posições extra
+        // para cada campo do vetor page_table aloca PT_FIELDS (== 6) posições extra
         page_table[i] = (int8_t *) malloc(PT_FIELDS * sizeof(int8_t));
         // 
-        page_table[i][PT_FRAMEID] = -1; // posição 0 == endereço da memória física
+        page_table[i][PT_FRAMEID] = -1; // posição[i][0] == endereço da memória física
         page_table[i][PT_MAPPED] = 0;
         page_table[i][PT_DIRTY] = 0;
         page_table[i][PT_REFERENCE_BIT] = 0;
         page_table[i][PT_REFERENCE_MODE] = 0;
-        page_table[i][PT_AGING_COUNTER] = 0; // posição 5 == contador para aging 
+        page_table[i][PT_AGING_COUNTER] = 0; // posição[i][5] == contador para aging 
     }
 
     // Memória Real é apenas uma tabela de bits (na verdade uso ints) indicando
