@@ -49,16 +49,7 @@ typedef struct {
 	int clock: "Se a última instrução gerou um ciclo de clock"
 
 */
-int fifo(int8_t** page_table, int num_pages, int prev_page, int fifo_frm, int num_frames, int clock) {
-    printf("entrou\n");
-    for(int i = 0; i < num_pages; i++){
-        if(page_table[i][PT_FRAMEID] == fifo_frm){
-            printf("%d\n",i);
-            printf("%d\n",page_table[i][PT_FRAMEID]);
-            return i; // i representa o endereço virtual da página a ser subtituída
-        }
-    }
-}
+
 
 int second_chance(int8_t** page_table, int num_pages, int prev_page,
                   int fifo_frm, int num_frames, int clock) {
@@ -73,6 +64,16 @@ int nru(int8_t** page_table, int num_pages, int prev_page,
 int aging(int8_t** page_table, int num_pages, int prev_page,
           int fifo_frm, int num_frames, int clock) {
     return -1;
+}
+
+int fifo(int8_t** page_table, int num_pages, int prev_page, int fifo_frm, int num_frames, int clock) {
+    for(int i = 0; i < num_pages; i++){
+        if(page_table[i][PT_FRAMEID] == fifo_frm){ // encontra a página virtual a ser substituída (referente ao frame que tem a alocação mais antiga)
+            printf("fifo_frm: %d\n",fifo_frm);
+            return i; // i representa o endereço virtual da página a ser subtituída
+        }
+    }
+    return -1; // caso não retorne pela condição dentro do loop eh pq algo está incorreto (será barrado no assert)
 }
 
 int random_page(int8_t** page_table, int num_pages, int prev_page,
@@ -119,8 +120,9 @@ int simulate(int8_t **page_table, int num_pages, int *prev_page, int *fifo_frm,
         next_frame_addr = find_next_frame(physical_memory, num_free_frames,
                                           num_frames, prev_free); // retorna -1 se não tiver nenhum livre (*num_free_frames == 0)
         if (*fifo_frm == -1) // caso a variável de primeiro acesso à página estiver com valor default 
-            *fifo_frm = next_frame_addr; // guarda endereço do ultimo primeiro inserido (mais antigo)
+            *fifo_frm = next_frame_addr; // guarda endereço do primeiro inserido (mais antigo)
         *num_free_frames = *num_free_frames - 1;
+        //obs: enquanto não houver falta de página o fifo_frm não será alterado
     } else { // Precisamos liberar a memória (não há mais páginas livres e nenhuma das páginas virtuais corresponde à requisição)! -> chama o algoritmo
         assert(*num_free_frames == 0); // retorna erro caso *num_free_frames != 0
         int to_free = evict(page_table, num_pages, *prev_page, *fifo_frm,
