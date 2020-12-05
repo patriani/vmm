@@ -69,7 +69,6 @@ int aging(int8_t** page_table, int num_pages, int prev_page,
 int fifo(int8_t** page_table, int num_pages, int prev_page, int fifo_frm, int num_frames, int clock) {
     for(int i = 0; i < num_pages; i++){
         if(page_table[i][PT_FRAMEID] == fifo_frm){ // encontra a página virtual a ser substituída (referente ao frame que tem a alocação mais antiga)
-            printf("fifo_frm: %d\n",fifo_frm);
             return i; // i representa o endereço virtual da página a ser subtituída
         }
     }
